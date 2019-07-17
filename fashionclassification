@@ -1,0 +1,90 @@
+# import libraries 
+import pandas as pd # Import Pandas for data manipulation using dataframes
+import numpy as np # Import Numpy for data statistical analysis 
+import matplotlib.pyplot as plt # Import matplotlib for data visualisation
+import seaborn as sns
+import random
+
+# dataframes creation for both training and testing datasets 
+fashion_train_df = pd.read_csv('fashion-mnist_train.csv',sep=',')
+fashion_test_df = pd.read_csv('fashion-mnist_test.csv', sep = ',')
+
+# Create training and testing arrays
+training = np.array(fashion_train_df, dtype = 'float32')
+testing = np.array(fashion_test_df, dtype='float32')
+
+# Let's view some images!
+i = random.randint(1,60000) # select any random index from 1 to 60,000
+plt.imshow(training[i,1:].reshape((28,28)) ) # reshape and plot the image
+
+plt.imshow(training[i,1:].reshape((28,28)) , cmap = 'gray') # reshape and plot the image
+
+label = training[i,0]
+
+# Prepare the training and testing dataset 
+X_train = training[:,1:]/255
+y_train = training[:,0]
+
+X_test = testing[:,1:]/255
+y_test = testing[:,0]
+
+from sklearn.model_selection import train_test_split
+X_train, X_validate, y_train, y_validate = train_test_split(X_train, y_train, test_size = 0.2, random_state = 12345)
+
+#unpack the tuple
+X_train = X_train.reshape(X_train.shape[0], *(28, 28, 1))
+X_test = X_test.reshape(X_test.shape[0], *(28, 28, 1))
+X_validate = X_validate.reshape(X_validate.shape[0], *(28, 28, 1))
+
+
+# open source Neural network library madke our life much easier
+# Import train_test_split from scikit library
+# Import Keras
+from keras.models import Sequential
+from keras.layers import Conv2D, MaxPooling2D, Dense, Flatten, Dropout
+from keras.optimizers import Adam
+#from keras.callbacks import TensorBoard
+
+cnn_model = Sequential()
+
+# Try 32 fliters first then 64
+cnn_model.add(Conv2D(64,3, 3, input_shape = (28,28,1), activation='relu'))
+cnn_model.add(MaxPooling2D(pool_size = (2, 2)))
+
+cnn_model.add(Dropout(0.25))
+
+# cnn_model.add(Conv2D(32,3, 3, activation='relu'))
+# cnn_model.add(MaxPooling2D(pool_size = (2, 2)))
+
+cnn_model.add(Flatten())
+cnn_model.add(Dense(output_dim = 32, activation = 'relu'))
+cnn_model.add(Dense(output_dim = 10, activation = 'sigmoid'))
+
+cnn_model.compile(loss ='sparse_categorical_crossentropy', optimizer=Adam(lr=0.001),metrics =['accuracy'])
+
+epochs = 10
+
+history = cnn_model.fit(X_train,
+                        y_train,
+                        batch_size = 512,
+                        nb_epoch = epochs,
+                        verbose = 1,
+                        validation_data = (X_validate, y_validate))
+
+#EVALUATING THE MODEL
+evaluation = cnn_model.evaluate(X_test, y_test)
+print('Test Accuracy : {:.3f}'.format(evaluation[1]))
+
+# get the predictions for the test data
+predicted_classes = cnn_model.predict_classes(X_test)
+
+from sklearn.metrics import confusion_matrix
+cm = confusion_matrix(y_test, predicted_classes)
+plt.figure(figsize = (14,10))
+sns.heatmap(cm, annot=True)
+# Sum the diagonal element to get the total true correct values
+
+from sklearn.metrics import classification_report
+num_classes = 10
+target_names = ["Class {}".format(i) for i in range(num_classes)]
+print(classification_report(y_test, predicted_classes, target_names = target_names))
